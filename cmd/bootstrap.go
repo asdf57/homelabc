@@ -5,9 +5,10 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"os/user"
 	"path/filepath"
+	"strconv"
 	"strings"
-	"syscall"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -188,27 +189,27 @@ func validateBootstrapOptions(opts bootstrapOptions) error {
 		-v $(HOST_DATA_PATH):$(MOUNTED_DATA_PATH)
 */
 
-func resolveDockerGroup(opts bootstrapOptions) (uint32, error) {
-	info, err := os.Stat(opts.dockerSocketPath)
+func resolveDockerGroup() (int, error) {
+	group, err := user.LookupGroup("docker")
 	if err != nil {
-		return 0, fmt.Errorf("stat Docker socket: %w", err)
+		return 0, fmt.Errorf("lookup docker group: %w", err)
 	}
-	return info.Sys().(*syscall.Stat_t).Gid, nil
+	return strconv.Atoi(group.Gid)
 }
 
-func resolveHomelabGroup() (uint32, error) {
-	info, err := os.Stat("homelab")
+func resolveHomelabGroup() (int, error) {
+	group, err := user.LookupGroup("homelab")
 	if err != nil {
-		return 0, fmt.Errorf("stat current directory: %w", err)
+		return 0, fmt.Errorf("lookup homelab group: %w", err)
 	}
-	return info.Sys().(*syscall.Stat_t).Gid, nil
+	return strconv.Atoi(group.Gid)
 }
 
 func runBootstrap(opts bootstrapOptions) error {
 	// run docker container
 	ctx := context.Background()
 
-	dockerGroup, err := resolveDockerGroup(opts)
+	dockerGroup, err := resolveDockerGroup()
 	if err != nil {
 		return fmt.Errorf("resolve Docker group: %w", err)
 	}
