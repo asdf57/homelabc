@@ -38,7 +38,7 @@ type bootstrapOptions struct {
 var bootstrapCmd = &cobra.Command{
 	Use:   "bootstrap <inventory publication name>",
 	Short: "Bootstrap the homelab environment",
-	Args:  cobra.ExactArgs(1),
+	Args:  cobra.ExactArgs(0),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		opts, err := resolveBootstrapOptions(viper.GetViper())
 		if err != nil {
