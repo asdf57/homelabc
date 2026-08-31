@@ -31,8 +31,7 @@ type bootstrapOptions struct {
 	mountPath        string
 	dockerSocketPath string
 	hostDataPath     string
-	imageName        string
-	imageTag         string
+	image            string
 }
 
 var bootstrapCmd = &cobra.Command{
@@ -94,7 +93,7 @@ func bootstrapOptionsFromConfig(config *viper.Viper) bootstrapOptions {
 		mountPath:        strings.TrimSpace(config.GetString(bootstrapMountPathKey)),
 		dockerSocketPath: strings.TrimSpace(config.GetString(bootstrapDockerSocketPathKey)),
 		hostDataPath:     strings.TrimSpace(config.GetString(bootstrapHostDataPathKey)),
-		imageName:        strings.TrimSpace(config.GetString(bootstrapImageKey)),
+		image:            strings.TrimSpace(config.GetString(bootstrapImageKey)),
 	}
 
 	// Match arch-provisioner's current Makefile behavior when no distinct
@@ -149,11 +148,8 @@ func validateBootstrapOptions(opts bootstrapOptions) error {
 		return fmt.Errorf("%q is not a Unix socket", opts.dockerSocketPath)
 	}
 
-	if opts.imageName == "" {
-		return fmt.Errorf("bootstrap image name cannot be empty")
-	}
-	if opts.imageTag == "" {
-		return fmt.Errorf("bootstrap image tag cannot be empty")
+	if opts.image == "" {
+		return fmt.Errorf("bootstrap image cannot be empty")
 	}
 
 	return nil
@@ -229,7 +225,7 @@ func runBootstrap(opts bootstrapOptions) error {
 		"-e", fmt.Sprintf("HOST_DATA_PATH=%s", opts.hostDataPath),
 		"--env-file", opts.containerEnvFile,
 		"-v", fmt.Sprintf("%s:%s", opts.hostDataPath, opts.mountPath),
-		fmt.Sprintf("%s:%s", opts.imageName, opts.imageTag),
+		opts.image,
 	)
 
 	cmd.Stdout = os.Stdout
