@@ -19,8 +19,7 @@ const (
 	bootstrapMountPathKey        = "bootstrap.mount-path"
 	bootstrapDockerSocketPathKey = "bootstrap.docker-socket-path"
 	bootstrapHostDataPathKey     = "bootstrap.host-data-path"
-	bootstrapImageNameKey        = "bootstrap.image-name"
-	bootstrapImageTagKey         = "bootstrap.image-tag"
+	bootstrapImageKey            = "bootstrap.image"
 )
 
 // bootstrapOptions contains the fully resolved options for the bootstrap
@@ -37,7 +36,7 @@ type bootstrapOptions struct {
 }
 
 var bootstrapCmd = &cobra.Command{
-	Use:   "bootstrap <inventory publication name>",
+	Use:   "bootstrap",
 	Short: "Bootstrap the homelab environment",
 	Args:  cobra.ExactArgs(0),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -57,16 +56,14 @@ func init() {
 	flags.String("container-env-file", ".env", "environment file passed unchanged to the bootstrap container")
 	flags.String("mount-path", "", "container path for the mounted host data (defaults to host-data-path)")
 	flags.String("docker-socket-path", "/var/run/docker.sock", "path to the host Docker socket")
-	flags.String("host-data-path", "", "host directory mounted into the bootstrap container")
-	flags.String("image-name", "prov", "bootstrap container image name")
-	flags.String("image-tag", "latest", "bootstrap container image tag")
+	flags.String("host-data-path", "", "host directory containing all persistent homelab data")
+	flags.String("image", "prov", "homelab image")
 
 	bindBootstrapFlag(bootstrapContainerEnvFileKey, "container-env-file")
 	bindBootstrapFlag(bootstrapMountPathKey, "mount-path")
 	bindBootstrapFlag(bootstrapDockerSocketPathKey, "docker-socket-path")
 	bindBootstrapFlag(bootstrapHostDataPathKey, "host-data-path")
-	bindBootstrapFlag(bootstrapImageNameKey, "image-name")
-	bindBootstrapFlag(bootstrapImageTagKey, "image-tag")
+	bindBootstrapFlag(bootstrapImageKey, "image")
 }
 
 func bindBootstrapFlag(key, flagName string) {
@@ -97,8 +94,7 @@ func bootstrapOptionsFromConfig(config *viper.Viper) bootstrapOptions {
 		mountPath:        strings.TrimSpace(config.GetString(bootstrapMountPathKey)),
 		dockerSocketPath: strings.TrimSpace(config.GetString(bootstrapDockerSocketPathKey)),
 		hostDataPath:     strings.TrimSpace(config.GetString(bootstrapHostDataPathKey)),
-		imageName:        strings.TrimSpace(config.GetString(bootstrapImageNameKey)),
-		imageTag:         strings.TrimSpace(config.GetString(bootstrapImageTagKey)),
+		imageName:        strings.TrimSpace(config.GetString(bootstrapImageKey)),
 	}
 
 	// Match arch-provisioner's current Makefile behavior when no distinct
@@ -113,8 +109,7 @@ func bootstrapOptionsFromConfig(config *viper.Viper) bootstrapOptions {
 func setBootstrapDefaults(config *viper.Viper) {
 	config.SetDefault(bootstrapContainerEnvFileKey, ".env")
 	config.SetDefault(bootstrapDockerSocketPathKey, "/var/run/docker.sock")
-	config.SetDefault(bootstrapImageNameKey, "prov")
-	config.SetDefault(bootstrapImageTagKey, "latest")
+	config.SetDefault(bootstrapImageKey, "prov")
 }
 
 func validateBootstrapOptions(opts bootstrapOptions) error {
