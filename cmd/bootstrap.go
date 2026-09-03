@@ -8,43 +8,35 @@ import (
 	"os/user"
 	"path/filepath"
 	"strconv"
-	"strings"
 
+	"github.com/asdf57/homelabc/schemas"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
 
 const (
-	bootstrapContainerEnvFileKey = "bootstrap.container-env-file"
-	bootstrapMountPathKey        = "bootstrap.mount-path"
-	bootstrapDockerSocketPathKey = "bootstrap.docker-socket-path"
-	bootstrapHostDataPathKey     = "bootstrap.host-data-path"
-	bootstrapImageKey            = "bootstrap.image"
+	bootstrapContainerEnvFileKey = "bootstrap.container_env_file"
+	bootstrapMountPathKey        = "bootstrap.container_mount_path"
+	bootstrapDockerSocketPathKey = "bootstrap.docker_socket_path"
+	bootstrapHostDataPathKey     = "bootstrap.host_data_path"
+	bootstrapImageKey            = "general.image"
+	gitPrivKeyPathKey            = "git.priv_key_path"
+	gitPrivKeyMountPathKey       = "git.container_priv_key_path"
 )
-
-// bootstrapOptions contains the fully resolved options for the bootstrap
-// container. Values can come from command-line flags, HOMELABC_* environment
-// variables, or the homelabc config file. containerEnvFile is kept opaque and
-// passed to Docker; homelabc never imports configuration from its contents.
-type bootstrapOptions struct {
-	containerEnvFile string
-	mountPath        string
-	dockerSocketPath string
-	hostDataPath     string
-	image            string
-}
 
 var bootstrapCmd = &cobra.Command{
 	Use:   "bootstrap",
 	Short: "Bootstrap the homelab environment",
 	Args:  cobra.ExactArgs(0),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		opts, err := resolveBootstrapOptions(viper.GetViper())
-		if err != nil {
+		cfg := config
+		if cfg.Bootstrap.ContainerMetadataMountPath == "" {
+			cfg.Bootstrap.ContainerMetadataMountPath = cfg.Bootstrap.ContainerMetadataHostPath
+		}
+		if err := validateBootstrapConfig(cfg); err != nil {
 			return err
 		}
-
-		return runBootstrap(opts)
+		return runBootstrap(cfg)
 	},
 }
 
@@ -52,7 +44,7 @@ func init() {
 	rootCmd.AddCommand(bootstrapCmd)
 
 	flags := bootstrapCmd.Flags()
-	flags.String("container-env-file", ".env", "environment file passed unchanged to the bootstrap container")
+	flags.String("container-env-file", ".env", "environment file passed to the bootstrap container")
 	flags.String("mount-path", "", "container path for the mounted host data (defaults to host-data-path)")
 	flags.String("docker-socket-path", "/var/run/docker.sock", "path to the host Docker socket")
 	flags.String("host-data-path", "", "host directory containing all persistent homelab data")
@@ -69,116 +61,63 @@ func bindBootstrapFlag(key, flagName string) {
 	cobra.CheckErr(viper.BindPFlag(key, bootstrapCmd.Flags().Lookup(flagName)))
 }
 
-// resolveBootstrapOptions applies this precedence, from highest to lowest:
-//
-//   - command-line flag
-//   - HOMELABC_BOOTSTRAP_* environment variable
-//   - homelabc configuration file
-//   - built-in default
-func resolveBootstrapOptions(config *viper.Viper) (bootstrapOptions, error) {
-	opts := bootstrapOptionsFromConfig(config)
-
-	if err := validateBootstrapOptions(opts); err != nil {
-		return bootstrapOptions{}, err
-	}
-
-	return opts, nil
-}
-
-func bootstrapOptionsFromConfig(config *viper.Viper) bootstrapOptions {
-	setBootstrapDefaults(config)
-
-	opts := bootstrapOptions{
-		containerEnvFile: strings.TrimSpace(config.GetString(bootstrapContainerEnvFileKey)),
-		mountPath:        strings.TrimSpace(config.GetString(bootstrapMountPathKey)),
-		dockerSocketPath: strings.TrimSpace(config.GetString(bootstrapDockerSocketPathKey)),
-		hostDataPath:     strings.TrimSpace(config.GetString(bootstrapHostDataPathKey)),
-		image:            strings.TrimSpace(config.GetString(bootstrapImageKey)),
-	}
-
-	// Match arch-provisioner's current Makefile behavior when no distinct
-	// container-side mount path is configured.
-	if opts.mountPath == "" {
-		opts.mountPath = opts.hostDataPath
-	}
-
-	return opts
-}
-
-func setBootstrapDefaults(config *viper.Viper) {
-	config.SetDefault(bootstrapContainerEnvFileKey, ".env")
-	config.SetDefault(bootstrapDockerSocketPathKey, "/var/run/docker.sock")
-	config.SetDefault(bootstrapImageKey, "prov")
-}
-
-func validateBootstrapOptions(opts bootstrapOptions) error {
-	if opts.containerEnvFile == "" {
+func validateBootstrapConfig(cfg schemas.Config) error {
+	b := cfg.Bootstrap
+	if b.ContainerEnvFilePath == "" {
 		return fmt.Errorf("container env file cannot be empty")
 	}
-	if info, err := os.Stat(opts.containerEnvFile); err != nil {
-		return fmt.Errorf("access container env file %q: %w", opts.containerEnvFile, err)
+	if info, err := os.Stat(b.ContainerEnvFilePath); err != nil {
+		return fmt.Errorf("access container env file %q: %w", b.ContainerEnvFilePath, err)
 	} else if info.IsDir() {
-		return fmt.Errorf("container env file %q is a directory", opts.containerEnvFile)
+		return fmt.Errorf("container env file %q is a directory", b.ContainerEnvFilePath)
 	}
 
-	if opts.hostDataPath == "" {
-		return fmt.Errorf(
-			"host data path is required; set --host-data-path, HOMELABC_BOOTSTRAP_HOST_DATA_PATH, or bootstrap.host-data-path in the homelabc config",
-		)
+	if b.ContainerMetadataHostPath == "" {
+		return fmt.Errorf("host data path is required")
 	}
-	if !filepath.IsAbs(opts.hostDataPath) {
-		return fmt.Errorf("host data path must be absolute: %q", opts.hostDataPath)
+	if !filepath.IsAbs(b.ContainerMetadataHostPath) {
+		return fmt.Errorf("host data path must be absolute: %q", b.ContainerMetadataHostPath)
 	}
-	if info, err := os.Stat(opts.hostDataPath); err != nil {
-		return fmt.Errorf("access host data path %q: %w", opts.hostDataPath, err)
+	if info, err := os.Stat(b.ContainerMetadataHostPath); err != nil {
+		return fmt.Errorf("access host data path %q: %w", b.ContainerMetadataHostPath, err)
 	} else if !info.IsDir() {
-		return fmt.Errorf("host data path %q is not a directory", opts.hostDataPath)
+		return fmt.Errorf("host data path %q is not a directory", b.ContainerMetadataHostPath)
 	}
 
-	if opts.mountPath == "" || !filepath.IsAbs(opts.mountPath) {
-		return fmt.Errorf("container mount path must be absolute: %q", opts.mountPath)
+	if !filepath.IsAbs(b.ContainerMetadataMountPath) {
+		return fmt.Errorf("container mount path must be absolute: %q", b.ContainerMetadataMountPath)
 	}
 
-	if opts.dockerSocketPath == "" {
+	if b.DockerSocketHostPath == "" {
 		return fmt.Errorf("Docker socket path cannot be empty")
 	}
-	if info, err := os.Stat(opts.dockerSocketPath); err != nil {
-		return fmt.Errorf("access Docker socket %q: %w", opts.dockerSocketPath, err)
+	if info, err := os.Stat(b.DockerSocketHostPath); err != nil {
+		return fmt.Errorf("access Docker socket %q: %w", b.DockerSocketHostPath, err)
 	} else if info.Mode()&os.ModeSocket == 0 {
-		return fmt.Errorf("%q is not a Unix socket", opts.dockerSocketPath)
+		return fmt.Errorf("%q is not a Unix socket", b.DockerSocketHostPath)
 	}
 
-	if opts.image == "" {
+	if cfg.General.Image == "" {
 		return fmt.Errorf("bootstrap image cannot be empty")
+	}
+	if !filepath.IsAbs(cfg.Git.PrivKeyMountPath) {
+		return fmt.Errorf("Git private key mount path must be absolute: %q", cfg.Git.PrivKeyMountPath)
+	}
+
+	if cfg.Git.PrivKeyHostPath == "" {
+		return fmt.Errorf("Git private key path is required")
+	}
+	if !filepath.IsAbs(cfg.Git.PrivKeyHostPath) {
+		return fmt.Errorf("Git private key path must be absolute: %q", cfg.Git.PrivKeyHostPath)
+	}
+	if info, err := os.Stat(cfg.Git.PrivKeyHostPath); err != nil {
+		return fmt.Errorf("access Git private key %q: %w", cfg.Git.PrivKeyHostPath, err)
+	} else if !info.Mode().IsRegular() {
+		return fmt.Errorf("Git private key %q is not a regular file", cfg.Git.PrivKeyHostPath)
 	}
 
 	return nil
 }
-
-/*
-	DOCKER_PRIV_OPTS = --rm -it \
-		--privileged \
-		--network host \
-		-v /var/run/docker.sock:/var/run/docker.sock \
-		-v /lib/modules:/lib/modules:ro \
-		-v /proc:/proc \
-		-v /sys:/sys \
-		-v /dev:/dev \
-		-w /homelab \
-		--env-file $(BOOTSTRAP_ENV_FILE) \
-		-v $(HOST_GIT_PROVISIONING_KEY_FILE):/etc/ssh/git_provisioning_key:ro \
-		-v $(HOST_PROVISIONING_KEY_FILE):/etc/ssh/provisioning_key:ro \
-		-v $(HOST_DROPLET_KEY_FILE):/etc/ssh/droplet_key:ro \
-		-v $(HOST_GIT_PROVISIONING_KEY_FILE).pub:/etc/ssh/git_provisioning_key.pub:ro \
-		-v $(HOST_PROVISIONING_KEY_FILE).pub:/etc/ssh/provisioning_key.pub:ro \
-		-v $(HOST_DROPLET_KEY_FILE).pub:/etc/ssh/droplet_key.pub:ro \
-		-v $(HOST_DATA_PATH):$(MOUNTED_DATA_PATH) \
-
-	DOCKER_UNPRIV_BASE_OPTS = --rm -it \
-		-w /homelab \
-		--env-file $(BOOTSTRAP_ENV_FILE) \
-		-v $(HOST_DATA_PATH):$(MOUNTED_DATA_PATH)
-*/
 
 func resolveDockerGroup() (int, error) {
 	group, err := user.LookupGroup("docker")
@@ -196,8 +135,7 @@ func resolveHomelabGroup() (int, error) {
 	return strconv.Atoi(group.Gid)
 }
 
-func runBootstrap(opts bootstrapOptions) error {
-	// run docker container
+func runBootstrap(cfg schemas.Config) error {
 	ctx := context.Background()
 
 	dockerGroup, err := resolveDockerGroup()
@@ -210,23 +148,8 @@ func runBootstrap(opts bootstrapOptions) error {
 		return fmt.Errorf("resolve homelab group: %w", err)
 	}
 
-	cmd := exec.CommandContext(
-		ctx,
-		"docker",
-		"run",
-		"--rm",
-		"-it",
-		"--privileged",
-		"--network", "host",
-		"--group-add", fmt.Sprintf("%d", dockerGroup),
-		"--group-add", fmt.Sprintf("%d", homelabGroup),
-		"-v", fmt.Sprintf("%s:%s", opts.dockerSocketPath, opts.dockerSocketPath),
-		"-w", "/homelab",
-		"-e", fmt.Sprintf("HOST_DATA_PATH=%s", opts.hostDataPath),
-		"--env-file", opts.containerEnvFile,
-		"-v", fmt.Sprintf("%s:%s", opts.hostDataPath, opts.mountPath),
-		opts.image,
-	)
+	args := bootstrapDockerArgs(cfg, dockerGroup, homelabGroup)
+	cmd := exec.CommandContext(ctx, "docker", args...)
 
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -237,4 +160,24 @@ func runBootstrap(opts bootstrapOptions) error {
 	}
 
 	return nil
+}
+
+func bootstrapDockerArgs(cfg schemas.Config, dockerGroup, homelabGroup int) []string {
+	b := cfg.Bootstrap
+	return []string{
+		"run",
+		"--rm",
+		"-it",
+		"--privileged",
+		"--network", "host",
+		"--group-add", fmt.Sprintf("%d", dockerGroup),
+		"--group-add", fmt.Sprintf("%d", homelabGroup),
+		"-v", fmt.Sprintf("%s:%s", b.DockerSocketHostPath, b.DockerSocketHostPath),
+		"-w", "/homelab",
+		"-e", fmt.Sprintf("HOST_DATA_PATH=%s", b.ContainerMetadataHostPath),
+		"--env-file", b.ContainerEnvFilePath,
+		"-v", fmt.Sprintf("%s:%s", b.ContainerMetadataHostPath, b.ContainerMetadataMountPath),
+		"-v", fmt.Sprintf("%s:%s:ro", cfg.Git.PrivKeyHostPath, cfg.Git.PrivKeyMountPath),
+		cfg.General.Image,
+	}
 }

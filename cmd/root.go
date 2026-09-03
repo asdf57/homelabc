@@ -9,6 +9,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/asdf57/homelabc/schemas"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -35,36 +36,53 @@ func Execute() {
 }
 
 func init() {
-	// Here you will define your flags and configuration settings.
-	// Cobra supports persistent flags, which, if defined here,
-	// will be global for your application.
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.homelabc.yaml)")
 }
 
+var config schemas.Config
+
 func initConfig() error {
+	v := viper.GetViper()
 	if cfgFile != "" {
-		viper.SetConfigFile(cfgFile)
+		v.SetConfigFile(cfgFile)
 	} else {
 		home, err := os.UserHomeDir()
 		if err != nil {
 			return fmt.Errorf("find home directory: %w", err)
 		}
 
-		viper.AddConfigPath(home)
-		viper.SetConfigName(".homelabc")
-		viper.SetConfigType("yaml")
+		v.AddConfigPath(home)
+		v.SetConfigName(".homelabc")
+		v.SetConfigType("yaml")
 	}
 
-	viper.SetEnvPrefix("HOMELABC")
-	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_", "-", "_"))
-	viper.AutomaticEnv()
-
-	if err := viper.ReadInConfig(); err != nil {
-		var notFound viper.ConfigFileNotFoundError
-		if cfgFile == "" && errors.As(err, &notFound) {
-			return nil
+	v.SetEnvPrefix("HOMELABC")
+	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+	v.AutomaticEnv()
+	v.SetDefault(gitPrivKeyMountPathKey, "/etc/ssh/git_provisioning_key")
+	for _, key := range []string{
+		bootstrapContainerEnvFileKey,
+		bootstrapMountPathKey,
+		bootstrapDockerSocketPathKey,
+		bootstrapHostDataPathKey,
+		bootstrapImageKey,
+		gitPrivKeyPathKey,
+		gitPrivKeyMountPathKey,
+	} {
+		if err := v.BindEnv(key); err != nil {
+			return fmt.Errorf("bind environment variable for %s: %w", key, err)
 		}
-		return fmt.Errorf("read config: %w", err)
+	}
+
+	if err := v.ReadInConfig(); err != nil {
+		var notFound viper.ConfigFileNotFoundError
+		if !(cfgFile == "" && errors.As(err, &notFound)) {
+			return fmt.Errorf("read config: %w", err)
+		}
+	}
+
+	if err := v.Unmarshal(&config); err != nil {
+		return fmt.Errorf("decode config: %w", err)
 	}
 
 	return nil
