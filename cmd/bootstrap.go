@@ -18,6 +18,8 @@ const (
 	bootstrapDockerSocketPathKey = "bootstrap.docker_socket_path"
 	bootstrapHostDataPathKey     = "bootstrap.host_data_path"
 	bootstrapImageKey            = "general.image"
+	gitPrivateKeyKey             = "git.priv_key_path"
+	gitPrivateKeyMountKey        = "git.container_priv_key_path"
 )
 
 var bootstrapCmd = &cobra.Command{
@@ -45,12 +47,16 @@ func init() {
 	flags.String("docker-socket-path", "/var/run/docker.sock", "path to the host Docker socket")
 	flags.String("host-data-path", "", "host directory containing all persistent homelab data")
 	flags.String("image", "prov", "homelab image")
+	flags.String("github-private-key", "", "host private key used to clone GitHub repositories")
+	flags.String("github-private-key-mount", "", "container path for the GitHub private key")
 
 	bindBootstrapFlag(bootstrapContainerEnvFileKey, "container-env-file")
 	bindBootstrapFlag(bootstrapMountPathKey, "mount-path")
 	bindBootstrapFlag(bootstrapDockerSocketPathKey, "docker-socket-path")
 	bindBootstrapFlag(bootstrapHostDataPathKey, "host-data-path")
 	bindBootstrapFlag(bootstrapImageKey, "image")
+	bindBootstrapFlag(gitPrivateKeyKey, "github-private-key")
+	bindBootstrapFlag(gitPrivateKeyMountKey, "github-private-key-mount")
 }
 
 func bindBootstrapFlag(key, flagName string) {
