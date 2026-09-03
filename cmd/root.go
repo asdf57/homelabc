@@ -9,21 +9,21 @@ import (
 	"os"
 	"strings"
 
-	"github.com/asdf57/homelabc/schemas"
+	appconfig "github.com/asdf57/homelabc/internal/config"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
 
-var cfgFile string
+var (
+	cfgFile  string
+	settings = viper.NewWithOptions(viper.ExperimentalBindStruct())
+)
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use:   "homelabc",
 	Short: "homelab cli tool",
 	Long:  `homelabc is a command line tool for managing homelab resources and configurations.`,
-	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-		return initConfig()
-	},
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.
@@ -39,51 +39,35 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.homelabc.yaml)")
 }
 
-var config schemas.Config
-
-func initConfig() error {
-	v := viper.GetViper()
+func loadConfig() (appconfig.Config, error) {
 	if cfgFile != "" {
-		v.SetConfigFile(cfgFile)
+		settings.SetConfigFile(cfgFile)
 	} else {
 		home, err := os.UserHomeDir()
 		if err != nil {
-			return fmt.Errorf("find home directory: %w", err)
+			return appconfig.Config{}, fmt.Errorf("find home directory: %w", err)
 		}
 
-		v.AddConfigPath(home)
-		v.SetConfigName(".homelabc")
-		v.SetConfigType("yaml")
+		settings.AddConfigPath(home)
+		settings.SetConfigName(".homelabc")
+		settings.SetConfigType("yaml")
 	}
 
-	v.SetEnvPrefix("HOMELABC")
-	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
-	v.AutomaticEnv()
-	v.SetDefault(gitPrivKeyMountPathKey, "/etc/ssh/git_provisioning_key")
-	for _, key := range []string{
-		bootstrapContainerEnvFileKey,
-		bootstrapMountPathKey,
-		bootstrapDockerSocketPathKey,
-		bootstrapHostDataPathKey,
-		bootstrapImageKey,
-		gitPrivKeyPathKey,
-		gitPrivKeyMountPathKey,
-	} {
-		if err := v.BindEnv(key); err != nil {
-			return fmt.Errorf("bind environment variable for %s: %w", key, err)
-		}
-	}
-
-	if err := v.ReadInConfig(); err != nil {
+	settings.SetEnvPrefix("HOMELABC")
+	settings.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+	settings.AutomaticEnv()
+	if err := settings.ReadInConfig(); err != nil {
 		var notFound viper.ConfigFileNotFoundError
 		if !(cfgFile == "" && errors.As(err, &notFound)) {
-			return fmt.Errorf("read config: %w", err)
+			return appconfig.Config{}, fmt.Errorf("read config: %w", err)
 		}
 	}
 
-	if err := v.Unmarshal(&config); err != nil {
-		return fmt.Errorf("decode config: %w", err)
+	var cfg appconfig.Config
+	if err := settings.Unmarshal(&cfg); err != nil {
+		return appconfig.Config{}, fmt.Errorf("decode config: %w", err)
 	}
+	cfg.ApplyDefaults()
 
-	return nil
+	return cfg, nil
 }
