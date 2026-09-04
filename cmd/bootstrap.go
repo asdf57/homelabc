@@ -120,6 +120,7 @@ func bootstrapDockerArgs(cfg appconfig.Config, dockerGroup, homelabGroup int) []
 		"--env-file", b.EnvFile,
 		"-v", fmt.Sprintf("%s:%s", b.HostDataPath, b.MountPath),
 		"-v", fmt.Sprintf("%s:%s:ro", cfg.Git.PrivateKey, cfg.Git.PrivateKeyMount),
+		"-e", fmt.Sprintf("MOUNT_GIT_SSH_KEY_PATH=%s", cfg.Git.PrivateKeyMount),
 		cfg.General.Image,
 	}
 }
