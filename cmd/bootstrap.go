@@ -47,6 +47,7 @@ func init() {
 	flags.String("mount-path", "", "container path for the mounted host data (defaults to host-data-path)")
 	flags.String("docker-socket-path", "/var/run/docker.sock", "path to the host Docker socket")
 	flags.String("host-data-path", "", "host directory containing all persistent homelab data")
+	flags.String("inventory-publication-group", "servers-inventory", "inventory publication group")
 	flags.String("image", "prov", "homelab image")
 	flags.String("github-private-key", "", "host private key used to clone GitHub repositories")
 	flags.String("github-private-key-mount", "", "container path for the GitHub private key")
@@ -123,6 +124,7 @@ func bootstrapDockerArgs(cfg appconfig.Config, dockerGroup, homelabGroup int) []
 		"-v", fmt.Sprintf("%s:%s", b.HostDataPath, b.MountPath),
 		"-v", fmt.Sprintf("%s:%s:ro", cfg.Git.PrivateKey, cfg.Git.PrivateKeyMount),
 		"-e", fmt.Sprintf("MOUNT_GIT_SSH_KEY_PATH=%s", cfg.Git.PrivateKeyMount),
+		"-e", fmt.Sprintf("INVENTORY_PUBLICATION_GROUP=%s", b.InventoryPublicationGroup),
 		cfg.General.Image,
 	}
 }
