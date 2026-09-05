@@ -7,10 +7,11 @@ type Config struct {
 }
 
 type Bootstrap struct {
-	EnvFile      string `mapstructure:"container_env_file"`
-	HostDataPath string `mapstructure:"host_data_path"`
-	MountPath    string `mapstructure:"container_mount_path"`
-	DockerSocket string `mapstructure:"docker_socket_path"`
+	EnvFile                   string `mapstructure:"container_env_file"`
+	HostDataPath              string `mapstructure:"host_data_path"`
+	MountPath                 string `mapstructure:"container_mount_path"`
+	DockerSocket              string `mapstructure:"docker_socket_path"`
+	InventoryPublicationGroup string `mapstructure:"inventory_publication_group"`
 }
 
 type Git struct {
@@ -25,6 +26,9 @@ type General struct {
 func (c *Config) ApplyDefaults() {
 	if c.Bootstrap.MountPath == "" {
 		c.Bootstrap.MountPath = c.Bootstrap.HostDataPath
+	}
+	if c.Bootstrap.InventoryPublicationGroup == "" {
+		c.Bootstrap.InventoryPublicationGroup = "servers-inventory"
 	}
 	if c.Git.PrivateKeyMount == "" {
 		c.Git.PrivateKeyMount = "/etc/ssh/git_provisioning_key"

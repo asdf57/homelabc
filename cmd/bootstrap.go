@@ -13,13 +13,14 @@ import (
 )
 
 const (
-	bootstrapContainerEnvFileKey = "bootstrap.container_env_file"
-	bootstrapMountPathKey        = "bootstrap.container_mount_path"
-	bootstrapDockerSocketPathKey = "bootstrap.docker_socket_path"
-	bootstrapHostDataPathKey     = "bootstrap.host_data_path"
-	bootstrapImageKey            = "general.image"
-	gitPrivateKeyKey             = "git.priv_key_path"
-	gitPrivateKeyMountKey        = "git.container_priv_key_path"
+	bootstrapContainerEnvFileKey          = "bootstrap.container_env_file"
+	bootstrapMountPathKey                 = "bootstrap.container_mount_path"
+	bootstrapDockerSocketPathKey          = "bootstrap.docker_socket_path"
+	bootstrapHostDataPathKey              = "bootstrap.host_data_path"
+	bootstrapInventoryPublicationGroupKey = "bootstrap.inventory_publication_group"
+	bootstrapImageKey                     = "general.image"
+	gitPrivateKeyKey                      = "git.priv_key_path"
+	gitPrivateKeyMountKey                 = "git.container_priv_key_path"
 )
 
 var bootstrapCmd = &cobra.Command{
@@ -54,6 +55,7 @@ func init() {
 	bindBootstrapFlag(bootstrapMountPathKey, "mount-path")
 	bindBootstrapFlag(bootstrapDockerSocketPathKey, "docker-socket-path")
 	bindBootstrapFlag(bootstrapHostDataPathKey, "host-data-path")
+	bindBootstrapFlag(bootstrapInventoryPublicationGroupKey, "inventory-publication-group")
 	bindBootstrapFlag(bootstrapImageKey, "image")
 	bindBootstrapFlag(gitPrivateKeyKey, "github-private-key")
 	bindBootstrapFlag(gitPrivateKeyMountKey, "github-private-key-mount")
