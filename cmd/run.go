@@ -65,6 +65,11 @@ func runDockerArgs(cfg appconfig.Config) []string {
 	args = append(args,
 		"-w", "/homelab",
 		"-e", fmt.Sprintf("INVENTORY_PUBLICATION_GROUP=%s", cfg.General.InventoryPublicationGroup),
+	)
+	if cfg.General.StigmergyApiUrl != "" {
+		args = append(args, "-e", fmt.Sprintf("STIGMERGY_API_URL=%s", cfg.General.StigmergyApiUrl))
+	}
+	args = append(args,
 		"-e", fmt.Sprintf("CONTAINER_MODE=%s", "normal"),
 		cfg.General.Image,
 	)

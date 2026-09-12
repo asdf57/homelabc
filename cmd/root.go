@@ -19,7 +19,10 @@ var (
 	settings = viper.NewWithOptions(viper.ExperimentalBindStruct())
 )
 
-const generalImageKey = "general.image"
+const (
+	generalImageKey           = "general.image"
+	generalStigmergyAPIURLKey = "general.stigmergy_url"
+)
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
@@ -41,7 +44,9 @@ func init() {
 	flags := rootCmd.PersistentFlags()
 	flags.StringVar(&cfgFile, "config", "", "config file (default is $HOME/.homelabc.yaml)")
 	flags.String("image", "prov", "homelab image")
+	flags.String("stigmergy-api-url", "", "Stigmergy API URL")
 	cobra.CheckErr(settings.BindPFlag(generalImageKey, flags.Lookup("image")))
+	cobra.CheckErr(settings.BindPFlag(generalStigmergyAPIURLKey, flags.Lookup("stigmergy-api-url")))
 }
 
 func loadConfig() (appconfig.Config, error) {

@@ -48,10 +48,20 @@ func TestBootstrapDockerArgsForDarwin(t *testing.T) {
 	for _, want := range []string{
 		"--group-add 0",
 		cfg.Bootstrap.DockerSocket + ":/var/run/docker.sock",
+		"STIGMERGY_API_URL=http://stigmergy.example:8080",
 	} {
 		if !strings.Contains(joined, want) {
 			t.Errorf("Docker arguments do not contain %q: %v", want, args)
 		}
+	}
+}
+
+func TestBootstrapDockerArgsOmitsEmptyStigmergyAPIURL(t *testing.T) {
+	cfg := validBootstrapConfig(t)
+	cfg.General.StigmergyApiUrl = ""
+
+	if got := strings.Join(bootstrapDockerArgs(cfg, []int{0}), " "); strings.Contains(got, "STIGMERGY_API_URL") {
+		t.Fatalf("bootstrapDockerArgs() contains an empty Stigmergy API URL: %s", got)
 	}
 }
 
@@ -96,5 +106,6 @@ func validBootstrapConfig(t *testing.T) appconfig.Config {
 	cfg.Bootstrap.MountPath = "/homelab-data"
 	cfg.Bootstrap.DockerSocket = dockerSocketPath
 	cfg.General.Image = "prov"
+	cfg.General.StigmergyApiUrl = "http://stigmergy.example:8080"
 	return cfg
 }

@@ -15,6 +15,7 @@ type Bootstrap struct {
 type General struct {
 	Image                     string `mapstructure:"image"`
 	InventoryPublicationGroup string `mapstructure:"inventory_publication_group"`
+	StigmergyApiUrl           string `mapstructure:"stigmergy_url"`
 }
 
 func (c *Config) ApplyDefaults() {
