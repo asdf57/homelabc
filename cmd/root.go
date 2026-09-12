@@ -19,6 +19,8 @@ var (
 	settings = viper.NewWithOptions(viper.ExperimentalBindStruct())
 )
 
+const generalImageKey = "general.image"
+
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use:   "homelabc",
@@ -36,7 +38,10 @@ func Execute() {
 }
 
 func init() {
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.homelabc.yaml)")
+	flags := rootCmd.PersistentFlags()
+	flags.StringVar(&cfgFile, "config", "", "config file (default is $HOME/.homelabc.yaml)")
+	flags.String("image", "prov", "homelab image")
+	cobra.CheckErr(settings.BindPFlag(generalImageKey, flags.Lookup("image")))
 }
 
 func loadConfig() (appconfig.Config, error) {

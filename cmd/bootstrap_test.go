@@ -26,16 +26,6 @@ func TestValidateBootstrapConfig(t *testing.T) {
 			change:  func(cfg *appconfig.Config) { cfg.Bootstrap.HostDataPath = "data" },
 			wantErr: "host data path must be absolute",
 		},
-		{
-			name:    "missing private key",
-			change:  func(cfg *appconfig.Config) { cfg.Git.PrivateKey = "" },
-			wantErr: "Git private key is required",
-		},
-		{
-			name:    "relative private key mount",
-			change:  func(cfg *appconfig.Config) { cfg.Git.PrivateKeyMount = "git_key" },
-			wantErr: "Git private key mount path must be absolute",
-		},
 	}
 
 	for _, tt := range tests {
@@ -50,17 +40,29 @@ func TestValidateBootstrapConfig(t *testing.T) {
 	}
 }
 
-func TestBootstrapDockerArgsMountsGitPrivateKeyReadOnly(t *testing.T) {
+func TestBootstrapDockerArgsForDarwin(t *testing.T) {
 	cfg := validBootstrapConfig(t)
-	args := bootstrapDockerArgs(cfg, 100, 200)
-	want := cfg.Git.PrivateKey + ":" + cfg.Git.PrivateKeyMount + ":ro"
+	args := bootstrapDockerArgs(cfg, []int{0})
+	joined := strings.Join(args, " ")
 
-	for i := 0; i+1 < len(args); i++ {
-		if args[i] == "-v" && args[i+1] == want {
-			return
+	for _, want := range []string{
+		"--group-add 0",
+		cfg.Bootstrap.DockerSocket + ":/var/run/docker.sock",
+	} {
+		if !strings.Contains(joined, want) {
+			t.Errorf("Docker arguments do not contain %q: %v", want, args)
 		}
 	}
-	t.Fatalf("Docker arguments do not contain %q: %v", want, args)
+}
+
+func TestResolveBootstrapGroupsForDarwin(t *testing.T) {
+	groups, err := resolveBootstrapGroups("darwin")
+	if err != nil {
+		t.Fatalf("resolveBootstrapGroups() error = %v", err)
+	}
+	if len(groups) != 1 || groups[0] != 0 {
+		t.Fatalf("resolveBootstrapGroups() = %v, want [0]", groups)
+	}
 }
 
 func validBootstrapConfig(t *testing.T) appconfig.Config {
@@ -72,11 +74,8 @@ func validBootstrapConfig(t *testing.T) appconfig.Config {
 	}
 	t.Cleanup(func() { _ = os.RemoveAll(tempDir) })
 	envFile := filepath.Join(tempDir, "container.env")
-	privateKey := filepath.Join(tempDir, "id_ed25519")
-	for _, path := range []string{envFile, privateKey} {
-		if err := os.WriteFile(path, nil, 0o600); err != nil {
-			t.Fatalf("write %s: %v", path, err)
-		}
+	if err := os.WriteFile(envFile, nil, 0o600); err != nil {
+		t.Fatalf("write %s: %v", envFile, err)
 	}
 
 	hostDataPath := filepath.Join(tempDir, "data")
@@ -96,8 +95,6 @@ func validBootstrapConfig(t *testing.T) appconfig.Config {
 	cfg.Bootstrap.HostDataPath = hostDataPath
 	cfg.Bootstrap.MountPath = "/homelab-data"
 	cfg.Bootstrap.DockerSocket = dockerSocketPath
-	cfg.Git.PrivateKey = privateKey
-	cfg.Git.PrivateKeyMount = "/etc/ssh/git_provisioning_key"
 	cfg.General.Image = "prov"
 	return cfg
 }

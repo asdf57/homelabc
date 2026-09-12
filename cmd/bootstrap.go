@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"os/user"
+	"runtime"
 	"strconv"
 
 	appconfig "github.com/asdf57/homelabc/internal/config"
@@ -17,9 +18,6 @@ const (
 	bootstrapMountPathKey        = "bootstrap.container_mount_path"
 	bootstrapDockerSocketPathKey = "bootstrap.docker_socket_path"
 	bootstrapHostDataPathKey     = "bootstrap.host_data_path"
-	bootstrapImageKey            = "general.image"
-	gitPrivateKeyKey             = "git.priv_key_path"
-	gitPrivateKeyMountKey        = "git.container_priv_key_path"
 )
 
 var bootstrapCmd = &cobra.Command{
@@ -46,17 +44,11 @@ func init() {
 	flags.String("mount-path", "", "container path for the mounted host data (defaults to host-data-path)")
 	flags.String("docker-socket-path", "/var/run/docker.sock", "path to the host Docker socket")
 	flags.String("host-data-path", "", "host directory containing all persistent homelab data")
-	flags.String("image", "prov", "homelab image")
-	flags.String("github-private-key", "", "host private key used to clone GitHub repositories")
-	flags.String("github-private-key-mount", "", "container path for the GitHub private key")
 
 	bindBootstrapFlag(bootstrapContainerEnvFileKey, "container-env-file")
 	bindBootstrapFlag(bootstrapMountPathKey, "mount-path")
 	bindBootstrapFlag(bootstrapDockerSocketPathKey, "docker-socket-path")
 	bindBootstrapFlag(bootstrapHostDataPathKey, "host-data-path")
-	bindBootstrapFlag(bootstrapImageKey, "image")
-	bindBootstrapFlag(gitPrivateKeyKey, "github-private-key")
-	bindBootstrapFlag(gitPrivateKeyMountKey, "github-private-key-mount")
 }
 
 func bindBootstrapFlag(key, flagName string) {
@@ -80,17 +72,12 @@ func resolveHomelabGroup() (int, error) {
 }
 
 func runBootstrap(ctx context.Context, cfg appconfig.Config) error {
-	dockerGroup, err := resolveDockerGroup()
+	groups, err := resolveBootstrapGroups(runtime.GOOS)
 	if err != nil {
-		return fmt.Errorf("resolve Docker group: %w", err)
+		return err
 	}
 
-	homelabGroup, err := resolveHomelabGroup()
-	if err != nil {
-		return fmt.Errorf("resolve homelab group: %w", err)
-	}
-
-	args := bootstrapDockerArgs(cfg, dockerGroup, homelabGroup)
+	args := bootstrapDockerArgs(cfg, groups)
 	cmd := exec.CommandContext(ctx, "docker", args...)
 
 	cmd.Stdout = os.Stdout
@@ -104,24 +91,48 @@ func runBootstrap(ctx context.Context, cfg appconfig.Config) error {
 	return nil
 }
 
-func bootstrapDockerArgs(cfg appconfig.Config, dockerGroup, homelabGroup int) []string {
+func resolveBootstrapGroups(goos string) ([]int, error) {
+	if goos == "darwin" {
+		// Docker Desktop and OrbStack expose the forwarded Docker socket as
+		// root:root inside the Linux container.
+		return []int{0}, nil
+	}
+	if goos != "linux" {
+		return nil, fmt.Errorf("bootstrap is not supported on %s", goos)
+	}
+
+	dockerGroup, err := resolveDockerGroup()
+	if err != nil {
+		return nil, fmt.Errorf("resolve Docker group: %w", err)
+	}
+	homelabGroup, err := resolveHomelabGroup()
+	if err != nil {
+		return nil, fmt.Errorf("resolve homelab group: %w", err)
+	}
+	return []int{dockerGroup, homelabGroup}, nil
+}
+
+func bootstrapDockerArgs(cfg appconfig.Config, groups []int) []string {
 	b := cfg.Bootstrap
-	return []string{
+	args := []string{
 		"run",
 		"--rm",
 		"-it",
 		"--privileged",
 		"--network", "host",
-		"--group-add", fmt.Sprintf("%d", dockerGroup),
-		"--group-add", fmt.Sprintf("%d", homelabGroup),
-		"-v", fmt.Sprintf("%s:%s", b.DockerSocket, b.DockerSocket),
+	}
+	for _, group := range groups {
+		args = append(args, "--group-add", strconv.Itoa(group))
+	}
+	args = append(args,
+		"-v", fmt.Sprintf("%s:/var/run/docker.sock", b.DockerSocket),
 		"-w", "/homelab",
 		"-e", fmt.Sprintf("HOST_DATA_PATH=%s", b.HostDataPath),
 		"--env-file", b.EnvFile,
 		"-v", fmt.Sprintf("%s:%s", b.HostDataPath, b.MountPath),
-		"-v", fmt.Sprintf("%s:%s:ro", cfg.Git.PrivateKey, cfg.Git.PrivateKeyMount),
-		"-e", fmt.Sprintf("MOUNT_GIT_SSH_KEY_PATH=%s", cfg.Git.PrivateKeyMount),
 		"-e", fmt.Sprintf("INVENTORY_PUBLICATION_GROUP=%s", "localhost-inventory"),
+		"-e", fmt.Sprintf("CONTAINER_MODE=%s", "bootstrap"),
 		cfg.General.Image,
-	}
+	)
+	return args
 }

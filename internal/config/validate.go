@@ -23,10 +23,17 @@ func (c Config) ValidateBootstrap() error {
 	if c.General.Image == "" {
 		return fmt.Errorf("bootstrap image is required")
 	}
-	if !filepath.IsAbs(c.Git.PrivateKeyMount) {
-		return fmt.Errorf("Git private key mount path must be absolute: %q", c.Git.PrivateKeyMount)
+	return nil
+}
+
+func (c Config) ValidateRun() error {
+	if c.General.Image == "" {
+		return fmt.Errorf("run image is required")
 	}
-	return validateFile("Git private key", c.Git.PrivateKey, true)
+	if c.General.InventoryPublicationGroup == "" {
+		return fmt.Errorf("inventory publication group is required")
+	}
+	return nil
 }
 
 func validateFile(name, path string, absolute bool) error {
