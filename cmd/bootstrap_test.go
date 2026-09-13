@@ -48,6 +48,7 @@ func TestBootstrapDockerArgsForDarwin(t *testing.T) {
 	for _, want := range []string{
 		"--group-add 0",
 		cfg.Bootstrap.DockerSocket + ":/var/run/docker.sock",
+		"MOUNT_DATA_PATH=" + cfg.Bootstrap.MountPath,
 		"STIGMERGY_API_URL=http://stigmergy.example:8080",
 	} {
 		if !strings.Contains(joined, want) {
