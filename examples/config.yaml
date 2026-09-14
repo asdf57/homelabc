@@ -4,5 +4,5 @@ bootstrap:
   docker_socket_path: /var/run/docker.sock
   host_data_path: /srv/homelab
 general:
-  image: arch-provisioner
+  image: docker.io/library/homelab:latest
   inventory_publication_group: servers-inventory

@@ -133,7 +133,6 @@ func bootstrapDockerArgs(cfg appconfig.Config, groups []int) []string {
 		"-v", fmt.Sprintf("%s:%s", b.HostDataPath, b.MountPath),
 		"-e", fmt.Sprintf("MOUNT_DATA_PATH=%s", b.MountPath),
 		"-e", fmt.Sprintf("INVENTORY_PUBLICATION_GROUP=%s", "localhost-inventory"),
-		"-e", fmt.Sprintf("BOOTSTRAP_IMAGE=%s", cfg.General.Image),
 	)
 	if cfg.General.StigmergyApiUrl != "" {
 		args = append(args, "-e", fmt.Sprintf("STIGMERGY_API_URL=%s", cfg.General.StigmergyApiUrl))
