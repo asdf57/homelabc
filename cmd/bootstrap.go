@@ -126,6 +126,7 @@ func bootstrapDockerArgs(cfg appconfig.Config, groups []int) []string {
 	}
 	args = append(args,
 		"-v", fmt.Sprintf("%s:/var/run/docker.sock", b.DockerSocket),
+		"-v", "/lib/modules:/lib/modules:ro",
 		"-w", "/homelab",
 		"-e", fmt.Sprintf("HOST_DATA_PATH=%s", b.HostDataPath),
 		"--env-file", b.EnvFile,
