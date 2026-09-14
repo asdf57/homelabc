@@ -50,6 +50,7 @@ func TestBootstrapDockerArgsForDarwin(t *testing.T) {
 		cfg.Bootstrap.DockerSocket + ":/var/run/docker.sock",
 		"/lib/modules:/lib/modules:ro",
 		"MOUNT_DATA_PATH=" + cfg.Bootstrap.MountPath,
+		"BOOTSTRAP_IMAGE=" + cfg.General.Image,
 		"STIGMERGY_API_URL=http://stigmergy.example:8080",
 	} {
 		if !strings.Contains(joined, want) {

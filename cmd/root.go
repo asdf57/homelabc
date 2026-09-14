@@ -43,7 +43,7 @@ func Execute() {
 func init() {
 	flags := rootCmd.PersistentFlags()
 	flags.StringVar(&cfgFile, "config", "", "config file (default is $HOME/.homelabc.yaml)")
-	flags.String("image", "prov", "homelab image")
+	flags.String("image", "arch-provisioner", "homelab image")
 	flags.String("stigmergy-api-url", "", "Stigmergy API URL")
 	cobra.CheckErr(settings.BindPFlag(generalImageKey, flags.Lookup("image")))
 	cobra.CheckErr(settings.BindPFlag(generalStigmergyAPIURLKey, flags.Lookup("stigmergy-api-url")))
