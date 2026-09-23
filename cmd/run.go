@@ -10,7 +10,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const runInventoryPublicationGroupKey = "general.inventory_publication_group"
+const runInventoryCaptureGroupKey = "general.inventory_capture_group"
 
 var runCmd = &cobra.Command{
 	Use:   "run",
@@ -32,9 +32,9 @@ func init() {
 	rootCmd.AddCommand(runCmd)
 
 	flags := runCmd.Flags()
-	flags.String("inventory-publication-group", "servers-inventory", "inventory capture group")
+	flags.String("inventory-capture-group", "servers", "inventory capture group")
 
-	bindRunFlag(runInventoryPublicationGroupKey, "inventory-publication-group")
+	bindRunFlag(runInventoryCaptureGroupKey, "inventory-capture-group")
 }
 
 func bindRunFlag(key, flagName string) {
@@ -61,10 +61,13 @@ func runDockerArgs(cfg appconfig.Config) []string {
 		"run",
 		"--rm",
 		"-it",
+		"--network", "host",
 	}
 	args = append(args,
 		"-w", "/homelab",
-		"-e", fmt.Sprintf("INVENTORY_PUBLICATION_GROUP=%s", cfg.General.InventoryPublicationGroup),
+		"-e", fmt.Sprintf("INVENTORY_CAPTURE_GROUP=%s", cfg.General.InventoryCaptureGroup),
+		"-e", fmt.Sprintf("GIT_ANSIBLE_ROLES_REPO=%s", cfg.General.AnsibleRolesRepo),
+		"-e", fmt.Sprintf("GIT_ANSIBLE_ROLES_REF=%s", cfg.General.AnsibleRolesRef),
 	)
 	if cfg.General.StigmergyApiUrl != "" {
 		args = append(args, "-e", fmt.Sprintf("STIGMERGY_API_URL=%s", cfg.General.StigmergyApiUrl))

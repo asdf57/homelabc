@@ -11,8 +11,11 @@ import (
 func TestValidateRunConfig(t *testing.T) {
 	cfg := appconfig.Config{
 		General: appconfig.General{
-			Image:                     "prov",
-			InventoryPublicationGroup: "servers-inventory",
+			Image:                 "prov",
+			InventoryCaptureGroup: "servers",
+			StigmergyApiUrl:       "http://stigmergy.example:8080",
+			AnsibleRolesRepo:      "https://example.test/roles.git",
+			AnsibleRolesRef:       "main",
 		},
 	}
 	if err := cfg.ValidateRun(); err != nil {
@@ -30,11 +33,11 @@ func TestValidateRunConfig(t *testing.T) {
 			wantErr: "run image is required",
 		},
 		{
-			name: "missing inventory publication group",
+			name: "missing inventory capture group",
 			change: func(cfg *appconfig.Config) {
-				cfg.General.InventoryPublicationGroup = ""
+				cfg.General.InventoryCaptureGroup = ""
 			},
-			wantErr: "inventory publication group is required",
+			wantErr: "inventory capture group is required",
 		},
 	}
 
@@ -53,17 +56,22 @@ func TestValidateRunConfig(t *testing.T) {
 func TestRunDockerArgs(t *testing.T) {
 	cfg := appconfig.Config{
 		General: appconfig.General{
-			Image:                     "registry.example/homelab:v1",
-			InventoryPublicationGroup: "production-inventory",
-			StigmergyApiUrl:           "http://stigmergy.example:8080",
+			Image:                 "registry.example/homelab:v1",
+			InventoryCaptureGroup: "production",
+			StigmergyApiUrl:       "http://stigmergy.example:8080",
+			AnsibleRolesRepo:      "https://example.test/roles.git",
+			AnsibleRolesRef:       "stable",
 		},
 	}
 	want := []string{
 		"run",
 		"--rm",
 		"-it",
+		"--network", "host",
 		"-w", "/homelab",
-		"-e", "INVENTORY_PUBLICATION_GROUP=production-inventory",
+		"-e", "INVENTORY_CAPTURE_GROUP=production",
+		"-e", "GIT_ANSIBLE_ROLES_REPO=https://example.test/roles.git",
+		"-e", "GIT_ANSIBLE_ROLES_REF=stable",
 		"-e", "STIGMERGY_API_URL=http://stigmergy.example:8080",
 		"-e", "CONTAINER_MODE=normal",
 		"registry.example/homelab:v1",
@@ -77,8 +85,10 @@ func TestRunDockerArgs(t *testing.T) {
 func TestRunDockerArgsOmitsEmptyStigmergyAPIURL(t *testing.T) {
 	cfg := appconfig.Config{
 		General: appconfig.General{
-			Image:                     "prov",
-			InventoryPublicationGroup: "servers-inventory",
+			Image:                 "prov",
+			InventoryCaptureGroup: "servers",
+			AnsibleRolesRepo:      "https://example.test/roles.git",
+			AnsibleRolesRef:       "main",
 		},
 	}
 
@@ -87,12 +97,12 @@ func TestRunDockerArgsOmitsEmptyStigmergyAPIURL(t *testing.T) {
 	}
 }
 
-func TestImageFlagIsSharedByRunAndBootstrap(t *testing.T) {
+func TestImageFlagIsSharedByRunAndInit(t *testing.T) {
 	if runCmd.Flags().Lookup("image") != nil {
 		t.Fatal("run command defines a local image flag")
 	}
-	if bootstrapCmd.Flags().Lookup("image") != nil {
-		t.Fatal("bootstrap command defines a local image flag")
+	if initCmd.Flags().Lookup("image") != nil {
+		t.Fatal("init command defines a local image flag")
 	}
 	flag := rootCmd.PersistentFlags().Lookup("image")
 	if flag == nil {
@@ -100,12 +110,12 @@ func TestImageFlagIsSharedByRunAndBootstrap(t *testing.T) {
 	}
 }
 
-func TestStigmergyAPIURLFlagIsSharedByRunAndBootstrap(t *testing.T) {
+func TestStigmergyAPIURLFlagIsSharedByRunAndInit(t *testing.T) {
 	if runCmd.Flags().Lookup("stigmergy-api-url") != nil {
 		t.Fatal("run command defines a local Stigmergy API URL flag")
 	}
-	if bootstrapCmd.Flags().Lookup("stigmergy-api-url") != nil {
-		t.Fatal("bootstrap command defines a local Stigmergy API URL flag")
+	if initCmd.Flags().Lookup("stigmergy-api-url") != nil {
+		t.Fatal("init command defines a local Stigmergy API URL flag")
 	}
 	flag := rootCmd.PersistentFlags().Lookup("stigmergy-api-url")
 	if flag == nil {

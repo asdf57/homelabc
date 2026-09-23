@@ -1,8 +1,16 @@
-bootstrap:
-  container_env_file: .env
-  container_mount_path: /homelab-data
-  docker_socket_path: /var/run/docker.sock
-  host_data_path: /srv/homelab
+init:
+  env_file: .env
+  mount_path: /homelab-data
+  docker_socket: /var/run/docker.sock
+  data_path: /srv/homelab
+  inventory_capture_group: platform
+  stigmergy_repo: https://github.com/asdf57/stigmergy.git
+  stigmergy_ref: main
+  homelab_init_repo: https://github.com/asdf57/homelab-init.git
+  homelab_init_ref: main
 general:
   image: docker.io/library/homelab:latest
-  inventory_publication_group: servers-inventory
+  stigmergy_url: http://127.0.0.1:8080
+  inventory_capture_group: servers
+  ansible_roles_repo: https://github.com/asdf57/ansible-roles.git
+  ansible_roles_ref: main
