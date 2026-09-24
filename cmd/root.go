@@ -50,14 +50,13 @@ func init() {
 }
 
 func loadConfig() (appconfig.Config, error) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return appconfig.Config{}, fmt.Errorf("find home directory: %w", err)
+	}
 	if cfgFile != "" {
 		settings.SetConfigFile(cfgFile)
 	} else {
-		home, err := os.UserHomeDir()
-		if err != nil {
-			return appconfig.Config{}, fmt.Errorf("find home directory: %w", err)
-		}
-
 		settings.AddConfigPath(home)
 		settings.SetConfigName(".homelabc")
 		settings.SetConfigType("yaml")
@@ -78,6 +77,7 @@ func loadConfig() (appconfig.Config, error) {
 		return appconfig.Config{}, fmt.Errorf("decode config: %w", err)
 	}
 	cfg.ApplyDefaults()
+	cfg.ExpandHome(home)
 
 	return cfg, nil
 }

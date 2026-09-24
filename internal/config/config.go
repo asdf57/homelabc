@@ -1,5 +1,10 @@
 package config
 
+import (
+	"path/filepath"
+	"strings"
+)
+
 type Config struct {
 	Init    Init    `mapstructure:"init"`
 	General General `mapstructure:"general"`
@@ -52,5 +57,13 @@ func (c *Config) ApplyDefaults() {
 	}
 	if c.Init.HomelabInitRef == "" {
 		c.Init.HomelabInitRef = "main"
+	}
+}
+
+func (c *Config) ExpandHome(home string) {
+	if c.Init.EnvFile == "~" {
+		c.Init.EnvFile = home
+	} else if strings.HasPrefix(c.Init.EnvFile, "~/") {
+		c.Init.EnvFile = filepath.Join(home, strings.TrimPrefix(c.Init.EnvFile, "~/"))
 	}
 }

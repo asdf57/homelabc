@@ -1,5 +1,5 @@
 init:
-  env_file: .env
+  env_file: ~/.homelab-init
   mount_path: /homelab-data
   docker_socket: /var/run/docker.sock
   data_path: /srv/homelab

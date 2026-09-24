@@ -49,7 +49,7 @@ var initCmd = &cobra.Command{
 func init() {
 	rootCmd.AddCommand(initCmd)
 	flags := initCmd.Flags()
-	flags.String("env-file", ".env", "secrets passed to the initialization container")
+	flags.String("env-file", "~/.homelab-init", "secrets passed to the initialization container")
 	flags.String("mount-path", "", "container path for persistent data")
 	flags.String("docker-socket", "/var/run/docker.sock", "host Docker socket")
 	flags.String("data-path", "", "host directory for persistent homelab data")
