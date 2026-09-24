@@ -27,7 +27,6 @@ const (
 
 var (
 	includeArtifacts bool
-	includePipelines bool
 )
 
 var initCmd = &cobra.Command{
@@ -42,7 +41,7 @@ var initCmd = &cobra.Command{
 		if err := cfg.ValidateInit(); err != nil {
 			return err
 		}
-		return runInit(cmd.Context(), cfg, includeArtifacts, includePipelines)
+		return runInit(cmd.Context(), cfg, includeArtifacts)
 	},
 }
 
@@ -55,7 +54,6 @@ func init() {
 	flags.String("data-path", "", "host directory for persistent homelab data")
 	flags.String("inventory-capture-group", "platform", "capture group containing platform configuration")
 	flags.BoolVar(&includeArtifacts, "artifacts", false, "build and publish provisioning images")
-	flags.BoolVar(&includePipelines, "pipelines", false, "configure Concourse pipelines")
 
 	for key, name := range map[string]string{
 		initEnvFileKey: "env-file", initMountPathKey: "mount-path",
@@ -66,12 +64,12 @@ func init() {
 	}
 }
 
-func runInit(ctx context.Context, cfg appconfig.Config, artifacts, pipelines bool) error {
+func runInit(ctx context.Context, cfg appconfig.Config, artifacts bool) error {
 	groups, err := resolveInitGroups(runtime.GOOS)
 	if err != nil {
 		return err
 	}
-	cmd := exec.CommandContext(ctx, "docker", initDockerArgs(cfg, groups, artifacts, pipelines)...)
+	cmd := exec.CommandContext(ctx, "docker", initDockerArgs(cfg, groups, artifacts)...)
 	cmd.Stdout, cmd.Stderr, cmd.Stdin = os.Stdout, os.Stderr, os.Stdin
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("initialize homelab: %w", err)
@@ -101,7 +99,7 @@ func resolveInitGroups(goos string) ([]int, error) {
 	return groups, nil
 }
 
-func initDockerArgs(cfg appconfig.Config, groups []int, artifacts, pipelines bool) []string {
+func initDockerArgs(cfg appconfig.Config, groups []int, artifacts bool) []string {
 	b := cfg.Init
 	args := []string{"run", "--rm", "--privileged", "--network", "host"}
 	for _, group := range groups {
@@ -126,18 +124,15 @@ func initDockerArgs(cfg appconfig.Config, groups []int, artifacts, pipelines boo
 		"-e", fmt.Sprintf("GIT_HOMELAB_INIT_REF=%s", b.HomelabInitRef),
 		"-e", "CONTAINER_MODE=init",
 		cfg.General.Image,
-		"bash", "--login", "-c", initPlaybookCommand(artifacts, pipelines),
+		"bash", "--login", "-c", initPlaybookCommand(artifacts),
 	)
 	return args
 }
 
-func initPlaybookCommand(artifacts, pipelines bool) string {
+func initPlaybookCommand(artifacts bool) string {
 	command := "set -e; ansible-playbook /homelab/plays/init.yml"
 	if artifacts {
 		command += "; ansible-playbook /homelab/plays/init_artifacts.yml"
-	}
-	if pipelines {
-		command += "; ansible-playbook /homelab/plays/init_pipelines.yml"
 	}
 	return command
 }

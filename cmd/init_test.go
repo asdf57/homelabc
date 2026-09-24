@@ -22,12 +22,12 @@ func TestValidateInitConfig(t *testing.T) {
 
 func TestInitDockerArgs(t *testing.T) {
 	cfg := validInitConfig(t)
-	joined := strings.Join(initDockerArgs(cfg, []int{0}, true, true), " ")
+	joined := strings.Join(initDockerArgs(cfg, []int{0}, true), " ")
 	for _, want := range []string{
 		"--group-add 0", "INVENTORY_CAPTURE_GROUP=platform",
 		"HOST_DATA_PATH=" + cfg.Init.DataPath,
 		"STIGMERGY_API_URL=http://stigmergy.example:8080", "CONTAINER_MODE=init",
-		"init.yml; ansible-playbook /homelab/plays/init_artifacts.yml; ansible-playbook /homelab/plays/init_pipelines.yml",
+		"init.yml; ansible-playbook /homelab/plays/init_artifacts.yml",
 	} {
 		if !strings.Contains(joined, want) {
 			t.Errorf("Docker arguments do not contain %q: %v", want, joined)
