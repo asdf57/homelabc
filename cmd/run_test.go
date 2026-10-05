@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
@@ -50,6 +52,40 @@ func TestValidateRunConfig(t *testing.T) {
 				t.Fatalf("ValidateRun() error = %v, want %q", err, tt.wantErr)
 			}
 		})
+	}
+}
+
+func TestRunnerCredentialMountsAreReadOnlyAndValidated(t *testing.T) {
+	dir := t.TempDir()
+	paths := []string{}
+	for _, name := range []string{"token", "key", "cert", "known-hosts"} {
+		p := filepath.Join(dir, name)
+		if err := os.WriteFile(p, []byte("fixture"), 0600); err != nil {
+			t.Fatal(err)
+		}
+		paths = append(paths, p)
+	}
+	cfg := appconfig.Config{General: appconfig.General{Image: "runner", InventoryCaptureGroup: "servers", StigmergyApiUrl: "https://api.example", AnsibleRolesRepo: "https://example/roles", AnsibleRolesRef: "main", APITokenFile: paths[0], SSHPrivateKeyFile: paths[1], SSHCertificateFile: paths[2], SSHKnownHostsFile: paths[3]}}
+	if err := cfg.ValidateRun(); err != nil {
+		t.Fatal(err)
+	}
+	args := strings.Join(runDockerArgs(cfg), " ")
+	for _, p := range paths {
+		if !strings.Contains(args, "src="+p) {
+			t.Fatal("missing credential mount")
+		}
+	}
+	if strings.Count(args, ",readonly") != 4 {
+		t.Fatal("credential mounts are not read-only")
+	}
+	cfg.General.SSHCertificateFile = ""
+	if err := cfg.ValidateRun(); err == nil {
+		t.Fatal("unpaired private key accepted")
+	}
+	cfg.General.SSHCertificateFile = paths[2]
+	cfg.General.APITokenFile = "relative"
+	if err := cfg.ValidateRun(); err == nil {
+		t.Fatal("relative Docker mount accepted")
 	}
 }
 
