@@ -37,7 +37,7 @@ func init() {
 		{"api-token-file", "general.api_token_file", "file containing the runner's API bearer token"},
 		{"ssh-private-key-file", "general.ssh_private_key_file", "runner's SSH private key file"},
 		{"ssh-certificate-file", "general.ssh_certificate_file", "runner's signed SSH user certificate"},
-		{"ssh-known-hosts-file", "general.ssh_known_hosts_file", "trusted SSH host keys for managed servers"},
+		{"ssh-known-hosts-file", "general.ssh_known_hosts_file", "optional explicit SSH trust; otherwise derive verified Server keys from the API"},
 	} {
 		flags.String(entry.name, "", entry.description)
 		bindRunFlag(entry.key, entry.name)

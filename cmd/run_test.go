@@ -78,6 +78,13 @@ func TestRunnerCredentialMountsAreReadOnlyAndValidated(t *testing.T) {
 	if strings.Count(args, ",readonly") != 4 {
 		t.Fatal("credential mounts are not read-only")
 	}
+	cfg.General.SSHKnownHostsFile = ""
+	if err := cfg.ValidateRun(); err != nil {
+		t.Fatal("API-derived host trust must not require a manual known_hosts file:", err)
+	}
+	if strings.Contains(strings.Join(runDockerArgs(cfg), " "), "ANSIBLE_KNOWN_HOSTS_FILE") {
+		t.Fatal("missing trust file was mounted")
+	}
 	cfg.General.SSHCertificateFile = ""
 	if err := cfg.ValidateRun(); err == nil {
 		t.Fatal("unpaired private key accepted")
