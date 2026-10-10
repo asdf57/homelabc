@@ -3,7 +3,7 @@
 set -eu
 
 binary_name="homelabc"
-install_dir="${INSTALL_DIR:-/usr/local/bin}"
+install_dir="${INSTALL_DIR:-$HOME/.local/bin}"
 repo_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 build_dir=$(mktemp -d "${TMPDIR:-/tmp}/homelabc-install.XXXXXX")
 
