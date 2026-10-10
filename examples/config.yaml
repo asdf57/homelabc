@@ -12,5 +12,6 @@ general:
   image: docker.io/library/homelab:latest
   stigmergy_url: http://127.0.0.1:8080
   inventory_capture_group: servers
+  api_token_file: ~/.config/homelabc/api-token
   ansible_roles_repo: https://github.com/asdf57/ansible-roles.git
   ansible_roles_ref: main

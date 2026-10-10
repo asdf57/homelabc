@@ -11,8 +11,13 @@ import (
 )
 
 func TestValidateRunConfig(t *testing.T) {
+	token := filepath.Join(t.TempDir(), "token")
+	if err := os.WriteFile(token, []byte("fixture"), 0600); err != nil {
+		t.Fatal(err)
+	}
 	cfg := appconfig.Config{
 		General: appconfig.General{
+			APITokenFile:          token,
 			Image:                 "prov",
 			InventoryCaptureGroup: "servers",
 			StigmergyApiUrl:       "http://stigmergy.example:8080",
@@ -29,6 +34,11 @@ func TestValidateRunConfig(t *testing.T) {
 		change  func(*appconfig.Config)
 		wantErr string
 	}{
+		{
+			name:    "missing token",
+			change:  func(cfg *appconfig.Config) { cfg.General.APITokenFile = "" },
+			wantErr: "API token file is required",
+		},
 		{
 			name:    "missing image",
 			change:  func(cfg *appconfig.Config) { cfg.General.Image = "" },
@@ -58,14 +68,14 @@ func TestValidateRunConfig(t *testing.T) {
 func TestRunnerCredentialMountsAreReadOnlyAndValidated(t *testing.T) {
 	dir := t.TempDir()
 	paths := []string{}
-	for _, name := range []string{"token", "key", "cert", "known-hosts"} {
+	for _, name := range []string{"token", "known-hosts"} {
 		p := filepath.Join(dir, name)
 		if err := os.WriteFile(p, []byte("fixture"), 0600); err != nil {
 			t.Fatal(err)
 		}
 		paths = append(paths, p)
 	}
-	cfg := appconfig.Config{General: appconfig.General{Image: "runner", InventoryCaptureGroup: "servers", StigmergyApiUrl: "https://api.example", AnsibleRolesRepo: "https://example/roles", AnsibleRolesRef: "main", APITokenFile: paths[0], SSHPrivateKeyFile: paths[1], SSHCertificateFile: paths[2], SSHKnownHostsFile: paths[3]}}
+	cfg := appconfig.Config{General: appconfig.General{Image: "runner", InventoryCaptureGroup: "servers", StigmergyApiUrl: "https://api.example", AnsibleRolesRepo: "https://example/roles", AnsibleRolesRef: "main", APITokenFile: paths[0], SSHKnownHostsFile: paths[1]}}
 	if err := cfg.ValidateRun(); err != nil {
 		t.Fatal(err)
 	}
@@ -75,7 +85,7 @@ func TestRunnerCredentialMountsAreReadOnlyAndValidated(t *testing.T) {
 			t.Fatal("missing credential mount")
 		}
 	}
-	if strings.Count(args, ",readonly") != 4 {
+	if strings.Count(args, ",readonly") != 2 {
 		t.Fatal("credential mounts are not read-only")
 	}
 	cfg.General.SSHKnownHostsFile = ""
@@ -85,14 +95,20 @@ func TestRunnerCredentialMountsAreReadOnlyAndValidated(t *testing.T) {
 	if strings.Contains(strings.Join(runDockerArgs(cfg), " "), "ANSIBLE_KNOWN_HOSTS_FILE") {
 		t.Fatal("missing trust file was mounted")
 	}
-	cfg.General.SSHCertificateFile = ""
-	if err := cfg.ValidateRun(); err == nil {
-		t.Fatal("unpaired private key accepted")
+	if strings.Contains(args, "ANSIBLE_PRIVATE_KEY_FILE") || strings.Contains(args, "ANSIBLE_CERTIFICATE_FILE") {
+		t.Fatal("client SSH credentials must be resolved inside the container")
 	}
-	cfg.General.SSHCertificateFile = paths[2]
 	cfg.General.APITokenFile = "relative"
 	if err := cfg.ValidateRun(); err == nil {
 		t.Fatal("relative Docker mount accepted")
+	}
+}
+
+func TestSSHCredentialFileFlagsAreNotExposed(t *testing.T) {
+	for _, name := range []string{"ssh-private-key-file", "ssh-certificate-file"} {
+		if runCmd.Flags().Lookup(name) != nil {
+			t.Fatalf("unexpected credential-file flag: %s", name)
+		}
 	}
 }
 

@@ -24,8 +24,6 @@ type Init struct {
 
 type General struct {
 	APITokenFile          string `mapstructure:"api_token_file"`
-	SSHPrivateKeyFile     string `mapstructure:"ssh_private_key_file"`
-	SSHCertificateFile    string `mapstructure:"ssh_certificate_file"`
 	SSHKnownHostsFile     string `mapstructure:"ssh_known_hosts_file"`
 	Image                 string `mapstructure:"image"`
 	InventoryCaptureGroup string `mapstructure:"inventory_capture_group"`
@@ -65,7 +63,7 @@ func (c *Config) ApplyDefaults() {
 }
 
 func (c *Config) ExpandHome(home string) {
-	for _, value := range []*string{&c.General.APITokenFile, &c.General.SSHPrivateKeyFile, &c.General.SSHCertificateFile, &c.General.SSHKnownHostsFile} {
+	for _, value := range []*string{&c.General.APITokenFile, &c.General.SSHKnownHostsFile} {
 		if strings.HasPrefix(*value, "~/") {
 			*value = filepath.Join(home, strings.TrimPrefix(*value, "~/"))
 		}

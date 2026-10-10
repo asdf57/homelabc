@@ -35,8 +35,6 @@ func init() {
 	flags.String("inventory-capture-group", "servers", "inventory capture group")
 	for _, entry := range []struct{ name, key, description string }{
 		{"api-token-file", "general.api_token_file", "file containing the runner's API bearer token"},
-		{"ssh-private-key-file", "general.ssh_private_key_file", "runner's SSH private key file"},
-		{"ssh-certificate-file", "general.ssh_certificate_file", "runner's signed SSH user certificate"},
 		{"ssh-known-hosts-file", "general.ssh_known_hosts_file", "optional explicit SSH trust; otherwise derive verified Server keys from the API"},
 	} {
 		flags.String(entry.name, "", entry.description)
@@ -51,7 +49,7 @@ func bindRunFlag(key, flagName string) {
 }
 
 func RunNormalMode(ctx context.Context, cfg appconfig.Config) error {
-	for _, path := range []string{cfg.General.APITokenFile, cfg.General.SSHPrivateKeyFile, cfg.General.SSHCertificateFile, cfg.General.SSHKnownHostsFile} {
+	for _, path := range []string{cfg.General.APITokenFile, cfg.General.SSHKnownHostsFile} {
 		if path == "" {
 			continue
 		}
@@ -95,8 +93,6 @@ func runDockerArgs(cfg appconfig.Config) []string {
 	}
 	for _, entry := range []struct{ source, target, environment string }{
 		{cfg.General.APITokenFile, "/run/homelab/api-token", "STIGMERGY_API_TOKEN_FILE"},
-		{cfg.General.SSHPrivateKeyFile, "/run/homelab/ssh-key", "ANSIBLE_PRIVATE_KEY_FILE"},
-		{cfg.General.SSHCertificateFile, "/run/homelab/ssh-certificate", "ANSIBLE_CERTIFICATE_FILE"},
 		{cfg.General.SSHKnownHostsFile, "/run/homelab/known-hosts", "ANSIBLE_KNOWN_HOSTS_FILE"},
 	} {
 		if entry.source != "" {

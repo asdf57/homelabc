@@ -46,7 +46,10 @@ func (c Config) ValidateInit() error {
 }
 
 func (c Config) ValidateRun() error {
-	for name, path := range map[string]string{"API token": c.General.APITokenFile, "SSH private key": c.General.SSHPrivateKeyFile, "SSH certificate": c.General.SSHCertificateFile, "SSH known hosts": c.General.SSHKnownHostsFile} {
+	if c.General.APITokenFile == "" {
+		return fmt.Errorf("API token file is required")
+	}
+	for name, path := range map[string]string{"API token": c.General.APITokenFile, "SSH known hosts": c.General.SSHKnownHostsFile} {
 		if path == "" {
 			continue
 		}
@@ -56,9 +59,6 @@ func (c Config) ValidateRun() error {
 		if err := validateFile(name, path, true); err != nil {
 			return err
 		}
-	}
-	if (c.General.SSHPrivateKeyFile == "") != (c.General.SSHCertificateFile == "") {
-		return fmt.Errorf("SSH private key and certificate must be supplied together")
 	}
 	if c.General.Image == "" {
 		return fmt.Errorf("run image is required")
